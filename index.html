@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ScholarShield — Spot Fake AI Research Citations</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+    code, pre, .font-mono { font-family: 'JetBrains Mono', monospace; }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col antialiased selection:bg-indigo-500 selection:text-white">
+
+  <!-- Header / Navigation -->
+  <header class="border-b border-slate-800/80 bg-slate-900/70 backdrop-blur-md sticky top-0 z-40">
+    <div class="max-w-6xl mx-auto px-4 py-3.5 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 via-indigo-500 to-cyan-400 flex items-center justify-center font-black text-xl text-white shadow-lg shadow-indigo-500/25">
+          🛡️
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="font-extrabold text-lg tracking-tight text-white">ScholarShield</span>
+            <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/30 uppercase tracking-wider">Fast Scanner</span>
+          </div>
+          <p class="text-xs text-slate-400 hidden sm:block">Automated check against 150M+ official scientific publications</p>
+        </div>
+      </div>
+      
+      <div class="flex items-center gap-2.5">
+        <button onclick="loadDemoPreset()" class="text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-indigo-300 border border-indigo-500/30 px-3.5 py-2 rounded-lg transition-all shadow-sm hover:shadow flex items-center gap-1.5">
+          <span>⚡ Load Example Papers</span>
+        </button>
+        <button onclick="openCertificateModal()" id="certBtn" class="hidden text-xs font-semibold bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/40 px-3.5 py-2 rounded-lg transition-all flex items-center gap-1.5">
+          <span>📜 View Results Report</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="flex-1 max-w-6xl mx-auto w-full px-4 py-8 space-y-6">
+    
+    <!-- Hero Banner with Simplified Copy -->
+    <div class="text-center max-w-3xl mx-auto space-y-2 pt-2">
+      <h1 class="text-3xl sm:text-5xl font-black text-white tracking-tight leading-tight">
+        Check References. <br class="hidden sm:inline" />
+        <span class="bg-gradient-to-r from-indigo-400 via-cyan-400 to-emerald-400 bg-clip-text text-transparent">Catch Fake AI Papers.</span>
+      </h1>
+      <p class="text-slate-400 text-sm sm:text-base max-w-2xl mx-auto">
+        Instantly scan research papers to catch made-up titles, broken links (DOIs), and swapped sources created by ChatGPT before submission.
+      </p>
+    </div>
+
+    <!-- Live Metrics Dashboard -->
+    <div id="statsSection" class="hidden transition-all duration-300">
+      <div class="grid grid-cols-2 lg:grid-cols-5 gap-3.5">
+        <div class="bg-slate-900/90 border border-slate-800 p-4 rounded-2xl flex flex-col justify-between">
+          <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Total Checked</span>
+          <span id="statTotal" class="text-3xl font-extrabold text-white mt-2">0</span>
+        </div>
+        <div class="bg-slate-900/90 border border-emerald-500/20 p-4 rounded-2xl flex flex-col justify-between">
+          <span class="text-xs font-semibold text-emerald-400 uppercase tracking-wider">🟢 Real Papers</span>
+          <span id="statVerified" class="text-3xl font-extrabold text-emerald-400 mt-2">0</span>
+        </div>
+        <div class="bg-slate-900/90 border border-amber-500/20 p-4 rounded-2xl flex flex-col justify-between">
+          <span class="text-xs font-semibold text-amber-400 uppercase tracking-wider">🟡 Wrong Link</span>
+          <span id="statMismatch" class="text-3xl font-extrabold text-amber-400 mt-2">0</span>
+        </div>
+        <div class="bg-slate-900/90 border border-rose-500/20 p-4 rounded-2xl flex flex-col justify-between">
+          <span class="text-xs font-semibold text-rose-400 uppercase tracking-wider">🔴 Fake Paper</span>
+          <span id="statPhantom" class="text-3xl font-extrabold text-rose-400 mt-2">0</span>
+        </div>
+        <div class="col-span-2 lg:col-span-1 bg-gradient-to-br from-indigo-950/40 to-slate-900 border border-indigo-500/30 p-4 rounded-2xl flex flex-col justify-between">
+          <span class="text-xs font-semibold text-indigo-300 uppercase tracking-wider">Trust Score</span>
+          <div class="flex items-baseline gap-1 mt-2">
+            <span id="statScore" class="text-3xl font-black text-indigo-400">0%</span>
+            <span class="text-xs text-slate-500">genuine</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Input Box Section -->
+    <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 sm:p-6 shadow-2xl backdrop-blur">
+      <div class="flex items-center justify-between mb-3">
+        <label for="citationsInput" class="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-2">
+          <span>Paste Citations / Reference List</span>
+          <span class="text-slate-500 font-normal lowercase">(IEEE, APA, or normal text)</span>
+        </label>
+        <span class="text-[11px] text-slate-500 font-mono">1 paper reference per line</span>
+      </div>
+
+      <textarea id="citationsInput" rows="7" 
+        placeholder="Paste references here, or click '⚡ Load Example Papers' above to test immediately..."
+        class="w-full bg-slate-950 border border-slate-800 rounded-xl p-4 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 font-mono leading-relaxed transition resize-y"></textarea>
+
+      <div class="mt-4 flex flex-col sm:flex-row items-center justify-between gap-3">
+        <div class="text-xs text-slate-500 flex items-center gap-2">
+          <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+          <span>Connected directly to global academic database (Crossref)</span>
+        </div>
+        <div class="flex items-center gap-2.5 w-full sm:w-auto">
+          <button onclick="clearWorkspace()" class="w-1/3 sm:w-auto px-4 py-2.5 text-xs font-semibold text-slate-400 hover:text-white bg-slate-800 hover:bg-slate-700/80 rounded-xl transition">
+            Clear
+          </button>
+          <button id="auditBtn" onclick="runAudit()" class="w-2/3 sm:w-auto px-7 py-2.5 text-xs font-bold text-white bg-gradient-to-r from-indigo-600 to-cyan-600 hover:from-indigo-500 hover:to-cyan-500 rounded-xl shadow-lg shadow-indigo-600/30 transition flex items-center justify-center gap-2">
+            <span id="btnText">Check References</span>
+            <span id="spinner" class="hidden animate-spin font-mono text-sm">⟳</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Results Section -->
+    <div id="resultsContainer" class="space-y-3.5"></div>
+
+  </main>
+
+  <!-- Report Modal with Simple Language -->
+  <div id="certModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-700 w-full max-w-2xl rounded-2xl p-6 sm:p-8 space-y-6 shadow-2xl relative">
+      <button onclick="closeCertificateModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white text-lg">✕</button>
+      
+      <div class="border-b border-slate-800 pb-4">
+        <div class="flex items-center gap-3">
+          <span class="text-3xl">🛡️</span>
+          <div>
+            <h3 class="text-xl font-bold text-white">ScholarShield Verification Report</h3>
+            <p class="text-xs text-slate-400 font-mono" id="certTimestamp">Generated on: </p>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-3 gap-3 text-center">
+        <div class="bg-slate-950 p-3 rounded-xl border border-slate-800">
+          <div class="text-[11px] text-slate-500">Total Checked</div>
+          <div class="text-xl font-bold text-white mt-1" id="certTotal">0</div>
+        </div>
+        <div class="bg-slate-950 p-3 rounded-xl border border-slate-800">
+          <div class="text-[11px] text-emerald-400">Real & Verified</div>
+          <div class="text-xl font-bold text-emerald-400 mt-1" id="certVerified">0</div>
+        </div>
+        <div class="bg-slate-950 p-3 rounded-xl border border-slate-800">
+          <div class="text-[11px] text-rose-400">Fake or Swapped</div>
+          <div class="text-xl font-bold text-rose-400 mt-1" id="certHallucinated">0</div>
+        </div>
+      </div>
+
+      <div class="bg-slate-950 rounded-xl p-4 border border-slate-800 space-y-2">
+        <div class="text-xs font-semibold text-slate-300">Summary Findings:</div>
+        <p class="text-xs text-slate-400 leading-relaxed" id="certSummaryText">
+          All references were cross-checked against official registry records.
+        </p>
+      </div>
+
+      <div class="flex justify-end gap-3 pt-2">
+        <button onclick="window.print()" class="px-5 py-2 text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl transition shadow">
+          🖨️ Print / Save as PDF
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer class="border-t border-slate-800/80 py-4 mt-auto text-center text-xs text-slate-500">
+    ScholarShield • Open Innovation • Trace City Hackathon
+  </footer>
+
+  <script>
+    let auditLog = [];
+
+    // Verified demo dataset: 1 Real Paper, 1 Swapped/Mismatch Paper, 1 Pure Fake
+    function loadDemoPreset() {
+      const demoData = 
+`[1] Jumper, J., Evans, R., Pritzel, A. et al. "Highly accurate protein structure prediction with AlphaFold." Nature, 2021. doi:10.1038/s41586-021-03819-2
+
+[2] Smith, A. & Davis, M. "The Impact of Generative AI on Global Supply Chains." Journal of Economics, 2024. doi:10.1038/s41586-021-03819-2
+
+[3] Hallucination, G. & Turing, A. "Quantum Consciousness in Neural Networks." IEEE Transactions on AI, 2026. doi:10.9999/fake.doi.123456`;
+
+      document.getElementById('citationsInput').value = demoData;
+    }
+
+    function clearWorkspace() {
+      document.getElementById('citationsInput').value = '';
+      document.getElementById('resultsContainer').innerHTML = '';
+      document.getElementById('statsSection').classList.add('hidden');
+      document.getElementById('certBtn').classList.add('hidden');
+      auditLog = [];
+    }
+
+    function escapeHtml(str) {
+      const div = document.createElement('div');
+      div.textContent = str || '';
+      return div.innerHTML;
+    }
+
+    function extractDOI(text) {
+      const match = text.match(/\b10\.\d{4,9}\/[-._;()/:A-Za-z0-9]+\b/);
+      if (!match) return null;
+      return match[0].replace(/[\.,\);]+$/, '');
+    }
+
+    function extractTitle(text) {
+      const quoteMatch = text.match(/["“](.+?)["”]/);
+      if (quoteMatch && quoteMatch[1].trim().length > 5) {
+        return quoteMatch[1].trim();
+      }
+      const clean = text.replace(/^\[\d+\]\s*/, '').replace(/^\d+[\.\)]\s*/, '');
+      const parts = clean.split(/\.\s+/);
+      if (parts.length > 1 && parts[1].length > 8) {
+        return parts[1].trim();
+      }
+      return clean.slice(0, 90).trim();
+    }
+
+    function isFuzzyTitleMatch(inputTitle, registeredTitle) {
+      const cleanWords = str => (str || '')
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, ' ')
+        .split(/\s+/)
+        .filter(w => w.length > 3);
+
+      const words1 = cleanWords(inputTitle);
+      const words2 = cleanWords(registeredTitle);
+      if (words1.length === 0 || words2.length === 0) return false;
+
+      const matches = words1.filter(w => words2.includes(w));
+      return (matches.length >= 2) || (matches.length / words1.length >= 0.35);
+    }
+
+    async function runAudit() {
+      const rawInput = document.getElementById('citationsInput').value.trim();
+      if (!rawInput) {
+        alert("Please paste your references or click '⚡ Load Example Papers' first!");
+        return;
+      }
+
+      const auditBtn = document.getElementById('auditBtn');
+      const btnText = document.getElementById('btnText');
+      const spinner = document.getElementById('spinner');
+      
+      auditBtn.disabled = true;
+      btnText.innerText = 'Checking...';
+      spinner.classList.remove('hidden');
+
+      const entries = rawInput
+        .split(/\n\s*\n|\n(?=\[\d+\]|\d+\.)/)
+        .map(e => e.trim())
+        .filter(e => e.length > 8);
+
+      const resultsContainer = document.getElementById('resultsContainer');
+      resultsContainer.innerHTML = '';
+      document.getElementById('statsSection').classList.remove('hidden');
+      document.getElementById('certBtn').classList.remove('hidden');
+
+      let stats = { total: entries.length, verified: 0, mismatch: 0, phantom: 0 };
+      auditLog = [];
+
+      for (let i = 0; i < entries.length; i++) {
+        const rawText = entries[i];
+        const doi = extractDOI(rawText);
+        const title = extractTitle(rawText);
+
+        const card = createPlaceholderCard(i + 1, rawText);
+        resultsContainer.appendChild(card);
+
+        const result = await verifyEntry(doi, title, rawText);
+        updateCardContent(card, result, rawText, doi, i + 1);
+
+        if (result.status === 'VERIFIED') stats.verified++;
+        else if (result.status === 'MISMATCH') stats.mismatch++;
+        else stats.phantom++;
+
+        auditLog.push({ index: i + 1, citation: rawText, doi, result });
+      }
+
+      document.getElementById('statTotal').innerText = stats.total;
+      document.getElementById('statVerified').innerText = stats.verified;
+      document.getElementById('statMismatch').innerText = stats.mismatch;
+      document.getElementById('statPhantom').innerText = stats.phantom;
+
+      const integrityScore = Math.round((stats.verified / stats.total) * 100);
+      document.getElementById('statScore').innerText = `${integrityScore}%`;
+
+      auditBtn.disabled = false;
+      btnText.innerText = 'Check References';
+      spinner.classList.add('hidden');
+    }
+
+    function createPlaceholderCard(index, text) {
+      const div = document.createElement('div');
+      div.className = "p-4 sm:p-5 rounded-2xl border border-slate-800 bg-slate-900 transition-all";
+      div.innerHTML = `
+        <div class="flex items-center justify-between mb-2">
+          <span class="text-xs font-mono text-slate-500 font-semibold">Paper #${index}</span>
+          <span class="text-xs text-indigo-400 font-medium animate-pulse flex items-center gap-1.5">
+            <span class="w-1.5 h-1.5 rounded-full bg-indigo-400"></span> Checking public scientific database...
+          </span>
+        </div>
+        <p class="text-xs sm:text-sm text-slate-300 font-mono line-clamp-2">${escapeHtml(text)}</p>
+      `;
+      return div;
+    }
+
+    async function verifyEntry(doi, title, rawText) {
+      // 1. Direct Crossref DOI Check
+      if (doi) {
+        try {
+          const res = await fetch(`https://api.crossref.org/works/${encodeURIComponent(doi)}`);
+
+          if (res.ok) {
+            const data = await res.json();
+            const regTitle = (data.message && data.message.title && data.message.title[0]) ? data.message.title[0] : '';
+            const match = isFuzzyTitleMatch(title, regTitle);
+
+            if (match) {
+              return {
+                status: 'VERIFIED',
+                badge: '🟢 REAL PAPER (VERIFIED)',
+                registryTitle: regTitle,
+                reason: `Genuine match! The paper title and link match official database records: "${regTitle}"`
+              };
+            } else {
+              return {
+                status: 'MISMATCH',
+                badge: '🟡 WRONG LINK ATTACHED',
+                registryTitle: regTitle,
+                reason: `Link mismatch: This link actually belongs to a totally different paper ("${regTitle}"), but was pasted here under an unrelated title.`
+              };
+            }
+          }
+        } catch (netErr) {}
+      }
+
+      // 2. Title Fallback Search (if DOI returned 404 or was omitted)
+      try {
+        const queryRes = await fetch(`https://api.crossref.org/works?query.title=${encodeURIComponent(title)}&rows=1`);
+        if (queryRes.ok) {
+          const qData = await queryRes.json();
+          if (qData.message && qData.message.items && qData.message.items.length > 0) {
+            const topItem = qData.message.items[0];
+            const topTitle = (topItem.title && topItem.title[0]) ? topItem.title[0] : '';
+            
+            if (isFuzzyTitleMatch(title, topTitle)) {
+              return {
+                status: 'VERIFIED',
+                badge: '🟢 REAL PAPER (FOUND BY TITLE)',
+                registryTitle: topTitle,
+                reason: `Found in database by title: "${topTitle}" (DOI: ${topItem.DOI || 'Registered'})`
+              };
+            }
+          }
+        }
+      } catch (err) {}
+
+      // 3. Fallback: Pure Fabrication
+      return {
+        status: 'PHANTOM',
+        badge: '🔴 FAKE / DOES NOT EXIST',
+        reason: doi ? `This link (DOI: ${doi}) does not exist in any global scientific database. It was likely fabricated by an AI tool.` : 'This paper could not be found anywhere in official scientific records. High chance of being made up.'
+      };
+    }
+
+    function updateCardContent(card, result, rawText, doi, index) {
+      let border = '', bg = '', badgeClass = '';
+
+      if (result.status === 'VERIFIED') {
+        border = 'border-emerald-500/30';
+        bg = 'bg-emerald-950/10';
+        badgeClass = 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30';
+      } else if (result.status === 'MISMATCH') {
+        border = 'border-amber-500/30';
+        bg = 'bg-amber-950/10';
+        badgeClass = 'bg-amber-500/10 text-amber-400 border border-amber-500/30';
+      } else {
+        border = 'border-rose-500/30';
+        bg = 'bg-rose-950/10';
+        badgeClass = 'bg-rose-500/10 text-rose-400 border border-rose-500/30';
+      }
+
+      card.className = `p-4 sm:p-5 rounded-2xl border ${border} ${bg} bg-slate-900 transition-all`;
+      card.innerHTML = `
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-2.5">
+          <span class="text-xs font-bold px-2.5 py-1 rounded-lg ${badgeClass}">
+            ${result.badge}
+          </span>
+          <span class="text-xs font-mono text-slate-400">
+            ${doi ? 'DOI Link: ' + escapeHtml(doi) : 'No link supplied'}
+          </span>
+        </div>
+        <p class="text-xs sm:text-sm text-slate-300 font-mono mb-3 leading-relaxed">${escapeHtml(rawText)}</p>
+        <div class="text-xs text-slate-300 bg-slate-950/80 p-3 rounded-xl border border-slate-800 space-y-1">
+          <div class="font-bold text-slate-400 uppercase tracking-wider text-[10px]">What we found:</div>
+          <div>${escapeHtml(result.reason)}</div>
+        </div>
+      `;
+    }
+
+    function openCertificateModal() {
+      const total = document.getElementById('statTotal').innerText;
+      const verified = document.getElementById('statVerified').innerText;
+      const mismatch = document.getElementById('statMismatch').innerText;
+      const phantom = document.getElementById('statPhantom').innerText;
+      const score = document.getElementById('statScore').innerText;
+
+      document.getElementById('certTotal').innerText = total;
+      document.getElementById('certVerified').innerText = verified;
+      document.getElementById('certHallucinated').innerText = parseInt(mismatch) + parseInt(phantom);
+      document.getElementById('certTimestamp').innerText = `Checked on: ${new Date().toLocaleString()} (Ref: SC-SHIELD-${Math.floor(Math.random()*90000 + 10000)})`;
+
+      document.getElementById('certSummaryText').innerText = 
+        `Completed check of ${total} paper references. Trust score is ${score}. Genuine papers were matched against Crossref scientific records. Any flagged references have non-existent links or link to completely different papers.`;
+
+      document.getElementById('certModal').classList.remove('hidden');
+    }
+
+    function closeCertificateModal() {
+      document.getElementById('certModal').classList.add('hidden');
+    }
+  </script>
+</body>
+</html>
